@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.cc }} / ${{ matrix.sanitize }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        cc: [gcc, clang]
+        sanitize: ["address,undefined"]
+        include:
+          - os: ubuntu-24.04
+            cc: clang
+            sanitize: thread
+          - os: ubuntu-24.04-arm
+            cc: clang
+            sanitize: thread
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build cmake clang
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=${{ matrix.cc }} -DNVMETAL_SANITIZE=${{ matrix.sanitize }}
+      - name: Build
+        run: ninja -C build
+      - name: Unit and fake-controller tests
+        # ASLR with high entropy breaks TSan's shadow mapping on recent kernels.
+        run: |
+          sudo sysctl -w vm.mmap_rnd_bits=28 || true
+          ctest --test-dir build --output-on-failure -L 'unit|fake'
+
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        # Pinned so CI formats exactly like the version the code was written with.
+        run: pipx install clang-format==21.1.8
+      - name: Check formatting
+        run: scripts/check-format.sh
