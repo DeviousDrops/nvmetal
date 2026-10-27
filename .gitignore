@@ -1,0 +1,7 @@
+/build*/
+/.cache/
+/.claude/
+compile_commands.json
+*.o
+*.swp
+__pycache__/
