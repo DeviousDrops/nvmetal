@@ -66,7 +66,7 @@ extern int test_ncases;
     {                                                                                              \
         int ran = 0, failed_cases = 0;                                                             \
         for (int i = 0; i < test_ncases; i++) {                                                    \
-            if (argc > 1 && strcmp(argv[1], test_cases[i].name) != 0)                             \
+            if (argc > 1 && strcmp(argv[1], test_cases[i].name) != 0)                              \
                 continue;                                                                          \
             int before = test_failures;                                                            \
             test_cases[i].fn();                                                                    \

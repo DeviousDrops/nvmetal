@@ -6,3 +6,4 @@ function(nvmetal_unit_test name)
   set_tests_properties(${name} PROPERTIES LABELS unit)
 endfunction()
 
+nvmetal_unit_test(test_spec)
