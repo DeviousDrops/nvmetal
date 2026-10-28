@@ -8,3 +8,4 @@ function(nvmetal_unit_test name)
 endfunction()
 
 nvmetal_unit_test(test_spec)
+nvmetal_unit_test(test_dma)

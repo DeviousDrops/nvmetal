@@ -28,6 +28,7 @@ find_package(Threads REQUIRED)
 add_library(nvmetal STATIC
   src/util.c
   src/vfio.c
+  src/dma.c
 )
 target_include_directories(nvmetal PUBLIC include PRIVATE src)
 target_link_libraries(nvmetal PUBLIC Threads::Threads)
