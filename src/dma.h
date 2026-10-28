@@ -56,8 +56,8 @@ struct nvm_dma_pool {
     uint32_t npages;
     uint32_t nchunks;
     int hugetlb;
-    uint64_t *chunk_iova; /* IOVA of each 2 MiB chunk */
-    uint32_t *alloc_len;  /* at an allocation's first page: its length in pages */
+    uint64_t *chunk_iova;        /* IOVA of each 2 MiB chunk */
+    uint32_t *alloc_len;         /* at an allocation's first page: its length in pages */
     struct nvm_dma_extent *free; /* sorted by start, never adjacent (coalesced) */
     uint32_t nfree;
     uint32_t free_cap;

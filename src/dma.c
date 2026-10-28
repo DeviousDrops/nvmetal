@@ -38,11 +38,8 @@ void nvm_iova_ops_vfio(struct nvm_iova_ops *ops, struct nvm_iova_vfio_ctx *ctx,
 {
     ctx->vfio = vfio;
     ctx->next = vfio->iova_base;
-    *ops = (struct nvm_iova_ops){.name = "iommu",
-                                 .map = vfio_map,
-                                 .unmap = vfio_unmap,
-                                 .ctx = ctx,
-                                 .contiguous = 1};
+    *ops = (struct nvm_iova_ops){
+        .name = "iommu", .map = vfio_map, .unmap = vfio_unmap, .ctx = ctx, .contiguous = 1};
 }
 
 int nvm_virt_to_phys(const void *va, uint64_t *pa)

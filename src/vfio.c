@@ -146,8 +146,8 @@ int nvm_vfio_open(struct nvm_vfio *v, const char *bdf)
     v->group = open(path, O_RDWR | O_CLOEXEC);
     if (v->group < 0) {
         rc = -errno;
-        nvm_err("open %s: %s (is %s bound to vfio-pci, and are you root?)", path,
-                strerror(errno), bdf);
+        nvm_err("open %s: %s (is %s bound to vfio-pci, and are you root?)", path, strerror(errno),
+                bdf);
         goto fail;
     }
     struct vfio_group_status gs = {.argsz = sizeof(gs)};

@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <time.h>
 
-#define NVM_LIKELY(x)   __builtin_expect(!!(x), 1)
-#define NVM_UNLIKELY(x) __builtin_expect(!!(x), 0)
-#define NVM_ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-#define NVM_ALIGN_UP(x, a) (((x) + ((a) - 1)) & ~((__typeof__(x))(a) - 1))
+#define NVM_LIKELY(x)        __builtin_expect(!!(x), 1)
+#define NVM_UNLIKELY(x)      __builtin_expect(!!(x), 0)
+#define NVM_ARRAY_SIZE(a)    (sizeof(a) / sizeof((a)[0]))
+#define NVM_ALIGN_UP(x, a)   (((x) + ((a) - 1)) & ~((__typeof__(x))(a) - 1))
 #define NVM_IS_ALIGNED(x, a) (((x) & ((__typeof__(x))(a) - 1)) == 0)
 
 #define NVM_PAGE_SHIFT 12
