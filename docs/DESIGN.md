@@ -13,3 +13,8 @@
 | 7 | Code reaches the guest by rsync over ssh (`scripts/vm/sync.sh`), not virtio-9p. | Builds run on the guest's own disk at native speed with no uid mapping issues. |
 | 8 | Controllers get fixed PCI slots: NVMDATA `0000:00:04.0`, NVMNULL `0000:00:05.0`; scripts find the kernel block device through `/sys/bus/pci/devices/<bdf>/nvme/`. | `nvmeX` numbering changes every time a controller is rebound between drivers. |
 | 9 | Root filesystem label verified as `cloudimg-rootfs` by reading the ext4 superblock of partition 1 in the converted image. | The brief asked to verify it. |
+| 10 | Legacy VFIO container/group API (`/dev/vfio/vfio` + `/dev/vfio/N`), type1v2 IOMMU, not iommufd cdev. | Works on every kernel since 3.6 and in no-IOMMU mode with the same code; the guest kernel (6.8) supports both. |
+| 11 | IOVA window chosen from `VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE`, starting at 4 GiB. | Stays clear of the x86 MSI window at `0xfee00000` that the IOMMU reserves; falls back to [4 GiB, 512 GiB) when the kernel does not report ranges. |
+| 12 | The DMA pool is mapped once at start-up, one `VFIO_IOMMU_MAP_DMA` per 2 MiB hugepage, at consecutive IOVAs. | No IOMMU work on the I/O path; virt→IOVA is one table lookup indexed by `(va - base) >> 21`. |
+| 13 | IOVA source behind `struct nvm_iova_ops` (IOMMU / physical via `/proc/self/pagemap` / identity for tests). | The no-IOMMU fallback and host tests share the allocator. With physical addresses only a 2 MiB hugepage is known to be contiguous, so allocations may not cross a chunk boundary in that mode. |
+| 14 | 64-bit registers (CAP, ASQ, ACQ) accessed as two 32-bit MMIO operations, low half first. | Permitted by §3.1 and does not depend on the platform issuing 8-byte MMIO transactions. |
