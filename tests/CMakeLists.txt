@@ -9,3 +9,4 @@ endfunction()
 
 nvmetal_unit_test(test_spec)
 nvmetal_unit_test(test_dma)
+add_subdirectory(guest)
