@@ -1,0 +1,14 @@
+controller   0000:00:05.0
+model        QEMU NVMe Ctrl
+serial       NVMNULL
+firmware     10.2.1
+vendor       0x1b36 (subsystem 0x1af4)
+version      1.4.0
+MDTS         512 KiB
+max transfer 512 KiB (nvmetal)
+queues       64 I/O queue pairs granted, 2048 entries max (CAP.MQES+1); created/deleted 64
+CAP          0x004008200f0107ff (TO 7500 ms, DSTRD 0, CQR 1)
+features     ONCS 0x075d (write zeroes yes, DSM yes), VWC present, OACS 0x012b
+DMA          IOMMU (VFIO type1), 65 MSI-X vectors
+namespaces   1 active (NN 256)
+  nsid 1: 33554432 LBAs x 512 B = 16.00 GiB, metadata 0 B, format 0 of 8

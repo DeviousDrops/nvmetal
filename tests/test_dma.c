@@ -50,7 +50,7 @@ TEST(alloc_is_page_aligned_zeroed_and_translated)
 TEST(lookup_outside_pool)
 {
     struct nvm_dma_pool p = make_pool(2, 1);
-    int x;
+    int x = 0;
     CHECK_EQ(nvm_dma_pool_iova(&p, &x), UINT64_MAX);
     CHECK_EQ(nvm_dma_pool_iova(&p, p.base + p.size), UINT64_MAX);
     CHECK(nvm_dma_pool_virt(&p, 1) == NULL);

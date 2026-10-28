@@ -29,9 +29,13 @@ add_library(nvmetal STATIC
   src/util.c
   src/vfio.c
   src/dma.c
+  src/qpair.c
+  src/ctrl.c
+  src/status.c
 )
 target_include_directories(nvmetal PUBLIC include PRIVATE src)
 target_link_libraries(nvmetal PUBLIC Threads::Threads)
 
 enable_testing()
+add_subdirectory(tools)
 add_subdirectory(tests)
