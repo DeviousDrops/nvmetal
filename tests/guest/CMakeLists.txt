@@ -7,3 +7,4 @@ function(nvmetal_guest_test name)
 endfunction()
 
 nvmetal_guest_test(vfio_probe)
+nvmetal_guest_test(io_smoke)

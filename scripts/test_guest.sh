@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Guest integration tests. Run inside the VM from the repo root after building:
 #   sudo scripts/test_guest.sh [suite...]
-# Suites: identify. Each prints PASS/FAIL lines; the exit status is the
+# Suites: identify io. Each prints PASS/FAIL lines; the exit status is the
 # number of failed suites. Output is also kept under bench/results/tests/.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -32,10 +32,20 @@ suite_identify() {
     ((ok)) && pass identify || fail identify
 }
 
+suite_io() {
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    if "$B/tests/guest/io_smoke" "$NVMDATA_BDF" > "$OUT/io_smoke.txt" 2>&1; then
+        cat "$OUT/io_smoke.txt"; pass io
+    else
+        cat "$OUT/io_smoke.txt"; fail io
+    fi
+}
+
 suites=("$@")
-[[ ${#suites[@]} -eq 0 ]] && suites=(identify)
+[[ ${#suites[@]} -eq 0 ]] && suites=(identify io)
 for s in "${suites[@]}"; do
     "suite_$s"
 done
+[[ -n ${SUDO_USER:-} ]] && chown -R "$SUDO_USER:" bench/results
 echo "$failed suite(s) failed"
 exit $failed
