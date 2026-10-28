@@ -30,6 +30,7 @@ add_library(nvmetal STATIC
   src/vfio.c
   src/dma.c
   src/qpair.c
+  src/ctrl.c
   src/status.c
 )
 target_include_directories(nvmetal PUBLIC include PRIVATE src)
