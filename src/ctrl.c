@@ -333,7 +333,8 @@ int nvm_ctrl_open(const char *bdf, const struct nvm_ctrl_opts *opts, struct nvm_
         .sq_db = (volatile uint32_t *)((volatile char *)c->regs + nvme_sq_db_offset(0, c->dstrd)),
         .cq_db = (volatile uint32_t *)((volatile char *)c->regs + nvme_cq_db_offset(0, c->dstrd)),
     };
-    if ((rc = nvm_qpair_init(&c->admin, &am, &c->pool, NVM_ADMIN_TIMEOUT_NS)) != 0)
+    if ((rc = nvm_qpair_init(&c->admin, &am, &c->pool, 2 * NVM_PAGE_SIZE, NVM_ADMIN_TIMEOUT_NS)) !=
+        0)
         goto fail_pool;
     c->admin.ctrl = c;
     nvm_mmio_write32(c->regs, NVME_REG_AQA, NVME_AQA(adepth, adepth));
@@ -482,7 +483,7 @@ int nvm_qpair_alloc(struct nvm_ctrl *c, const struct nvm_qpair_opts *opts, struc
         .cq_db = (volatile uint32_t *)((volatile char *)c->regs + nvme_cq_db_offset(qid, c->dstrd)),
     };
     uint64_t tmo_ns = opts && opts->timeout_ms ? opts->timeout_ms * 1000000ull : NVM_IO_TIMEOUT_NS;
-    if ((rc = nvm_qpair_init(qp, &m, &c->pool, tmo_ns)) != 0)
+    if ((rc = nvm_qpair_init(qp, &m, &c->pool, c->info.max_xfer, tmo_ns)) != 0)
         goto fail;
     qp->ctrl = c;
 
@@ -551,4 +552,14 @@ void nvm_qpair_free(struct nvm_qpair *qp)
     pthread_mutex_lock(&c->qid_lock);
     c->qpairs[qid] = NULL;
     pthread_mutex_unlock(&c->qid_lock);
+}
+
+void *nvm_dma_alloc(struct nvm_ctrl *c, size_t size, uint64_t *iova)
+{
+    return nvm_dma_pool_alloc(&c->pool, size, iova);
+}
+
+void nvm_dma_free(struct nvm_ctrl *c, void *ptr)
+{
+    nvm_dma_pool_free(&c->pool, ptr);
 }
