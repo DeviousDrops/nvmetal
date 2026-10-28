@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Guest integration tests. Run inside the VM from the repo root after building:
 #   sudo scripts/test_guest.sh [suite...]
-# Suites: identify io. Each prints PASS/FAIL lines; the exit status is the
+# Suites: identify io verify selftest oob. Each prints PASS/FAIL lines; the exit status is the
 # number of failed suites. Output is also kept under bench/results/tests/.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -41,8 +41,48 @@ suite_io() {
     fi
 }
 
+dmar_faults() { dmesg | grep -c -E 'DMAR: \[DMA (Read|Write)|DMAR:.*fault' || true; }
+
+suite_verify() {
+    # >= 1 GiB written and verified, 4 threads, I/O sizes 4 KiB..MDTS, QD 32.
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    local f0 f1
+    f0=$(dmar_faults)
+    "$B/tools/nvmetal-verify" --bytes 1G --threads 4 --qd 32 --json "$NVMDATA_BDF" \
+        > "$OUT/verify.json" 2> "$OUT/verify.err"
+    local rc=$?
+    f1=$(dmar_faults)
+    cat "$OUT/verify.json" "$OUT/verify.err"
+    if [[ $rc -eq 0 && $(jq -r .result "$OUT/verify.json") == pass &&
+          $(jq .mismatches "$OUT/verify.json") -eq 0 &&
+          $(jq .bytes_verified "$OUT/verify.json") -ge 1073741824 &&
+          $(jq '.queue_depth_multiple > 10' "$OUT/verify.json") == true && $f1 -eq $f0 ]]; then
+        pass verify
+    else
+        echo "  rc=$rc dmar faults $f0 -> $f1"; fail verify
+    fi
+}
+
+suite_selftest() {
+    # The verifier must catch planted CRC, misdirected and stale blocks.
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    "$B/tools/nvmetal-verify" --bytes 64M --threads 2 --region 256M --inject 3 "$NVMDATA_BDF" \
+        > "$OUT/verify-selftest.txt" 2>&1
+    local rc=$?
+    tail -2 "$OUT/verify-selftest.txt"
+    [[ $rc -eq 0 ]] && pass selftest || fail selftest
+}
+
+suite_oob() {
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    "$B/tools/nvmetal-verify" --oob "$NVMDATA_BDF" > "$OUT/oob.txt" 2>&1
+    local rc=$?
+    cat "$OUT/oob.txt"
+    [[ $rc -eq 0 ]] && pass oob || fail oob
+}
+
 suites=("$@")
-[[ ${#suites[@]} -eq 0 ]] && suites=(identify io)
+[[ ${#suites[@]} -eq 0 ]] && suites=(identify io verify selftest oob)
 for s in "${suites[@]}"; do
     "suite_$s"
 done
