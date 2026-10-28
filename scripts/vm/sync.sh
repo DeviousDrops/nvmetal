@@ -3,5 +3,5 @@
 # the guest builds from exactly what is on the host.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
-rsync -a --delete --exclude '/build*' --exclude '.git' \
+rsync -a --delete --exclude '/build*' --exclude '.git' --exclude '/bench/results' \
     -e "ssh ${SSH_OPTS[*]}" "$REPO_DIR/" "$VM_USER@127.0.0.1:nvmetal/"
