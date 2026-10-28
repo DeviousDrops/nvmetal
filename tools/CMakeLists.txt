@@ -1,4 +1,5 @@
-foreach(tool nvmetal-identify)
-  add_executable(${tool} ${tool}.c)
-  target_link_libraries(${tool} PRIVATE nvmetal)
-endforeach()
+add_executable(nvmetal-identify nvmetal-identify.c)
+target_link_libraries(nvmetal-identify PRIVATE nvmetal)
+
+add_executable(nvmetal-verify nvmetal-verify.c crc32c.c)
+target_link_libraries(nvmetal-verify PRIVATE nvmetal)
