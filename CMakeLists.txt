@@ -37,4 +37,5 @@ target_include_directories(nvmetal PUBLIC include PRIVATE src)
 target_link_libraries(nvmetal PUBLIC Threads::Threads)
 
 enable_testing()
+add_subdirectory(tools)
 add_subdirectory(tests)
