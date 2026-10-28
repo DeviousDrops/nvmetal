@@ -29,6 +29,10 @@
  * store. On the read side `dmb oshld` orders the phase load before later
  * loads.
  *
+ * nvm_dma_mb() orders earlier loads *and* stores before later ones. It guards
+ * the CQ head doorbell: the CQE loads must finish before the store that lets
+ * the device reuse those slots, and `dmb oshst` would not order loads.
+ *
  * The doorbell store is additionally a C11 release store and the DW3 load an
  * acquire load. On x86-64 these compile to plain MOVs (no extra cost), but
  * they tell the compiler, and ThreadSanitizer when the fake controller plays
@@ -43,13 +47,16 @@
 #if defined(__x86_64__) || defined(__i386__)
 #define nvm_dma_wmb() __asm__ __volatile__("" ::: "memory")
 #define nvm_dma_rmb() __asm__ __volatile__("" ::: "memory")
+#define nvm_dma_mb()  __asm__ __volatile__("" ::: "memory")
 #elif defined(__aarch64__)
 #define nvm_dma_wmb() __asm__ __volatile__("dmb oshst" ::: "memory")
 #define nvm_dma_rmb() __asm__ __volatile__("dmb oshld" ::: "memory")
+#define nvm_dma_mb()  __asm__ __volatile__("dmb osh" ::: "memory")
 #else
 /* Unknown architecture: a full fence is correct if slower. */
 #define nvm_dma_wmb() __atomic_thread_fence(__ATOMIC_SEQ_CST)
 #define nvm_dma_rmb() __atomic_thread_fence(__ATOMIC_SEQ_CST)
+#define nvm_dma_mb()  __atomic_thread_fence(__ATOMIC_SEQ_CST)
 #endif
 
 /*
