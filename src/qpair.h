@@ -47,6 +47,9 @@ struct nvm_req {
     uint64_t submit_ns; /* coarse clock, for timeouts only */
     uint16_t state;
     uint16_t next_free;
+    /* This CID's PRP list pages (prp_pages_per_req of them, contiguous). */
+    uint64_t *prp_va;
+    uint64_t prp_iova;
 };
 
 /* Memory and doorbells for a queue pair, provided by the controller or a test. */
@@ -59,14 +62,6 @@ struct nvm_qpair_mem {
     uint64_t cq_iova;
     volatile uint32_t *sq_db;
     volatile uint32_t *cq_db;
-};
-
-struct nvm_qpair_stats {
-    uint64_t submitted;
-    uint64_t completed;
-    uint64_t doorbells; /* SQ tail doorbell writes */
-    uint64_t timeouts;
-    uint64_t late_completions;
 };
 
 struct nvm_qpair {
@@ -87,10 +82,15 @@ struct nvm_qpair {
     uint16_t outstanding; /* commands the caller is still waiting for */
     uint32_t idle_polls;
     uint64_t timeout_ns;
+    uint32_t max_xfer;
+    unsigned prp_pages_per_req;
+    uint32_t ns_nsid; /* one-entry namespace cache for the public read/write calls */
+    uint32_t ns_lba_size;
 
     uint16_t qid;
     uint64_t sq_iova;
     uint64_t cq_iova;
+    void *prp_block;
     struct nvm_dma_pool *pool;
     struct nvm_ctrl *ctrl;
     struct nvm_qpair_stats stats;
@@ -98,9 +98,12 @@ struct nvm_qpair {
 
 #define NVM_CID_NONE 0xffff
 
-/* Sets up ring state over caller-provided memory; CIDs 0..depth-2 are usable. */
+/*
+ * Sets up ring state over caller-provided memory; CIDs 0..depth-2 are usable.
+ * Each CID gets enough PRP list pages from the pool for max_xfer bytes.
+ */
 int nvm_qpair_init(struct nvm_qpair *qp, const struct nvm_qpair_mem *mem, struct nvm_dma_pool *pool,
-                   uint64_t timeout_ns);
+                   uint32_t max_xfer, uint64_t timeout_ns);
 void nvm_qpair_fini(struct nvm_qpair *qp);
 
 /* CID allocator: returns NVM_CID_NONE when every CID is in use. */
@@ -128,6 +131,14 @@ static inline void nvm_cid_free(struct nvm_qpair *qp, uint16_t cid)
  * first. Returns -EAGAIN when the queue is full.
  */
 int nvm_qpair_submit_cmd(struct nvm_qpair *qp, const struct nvme_sqe *cmd, nvm_cb cb, void *arg);
+
+/*
+ * Queue a read or write of nlb blocks of lba_size bytes. buf must be DMA pool
+ * memory, 4 KiB aligned. Does not ring the doorbell. Returns -EINVAL for bad
+ * arguments, -EAGAIN when the queue is full.
+ */
+int nvm_qpair_rw(struct nvm_qpair *qp, uint8_t opc, uint32_t nsid, void *buf, uint64_t lba,
+                 uint32_t nlb, uint32_t lba_size, nvm_cb cb, void *arg);
 
 /* Writes the SQ tail doorbell once for everything queued since the last kick. */
 void nvm_qpair_kick_internal(struct nvm_qpair *qp);

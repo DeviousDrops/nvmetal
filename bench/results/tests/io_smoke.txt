@@ -1,0 +1,9 @@
+  rw     512 bytes at lba 0 ok
+  rw    4096 bytes at lba 1 ok
+  rw    8192 bytes at lba 9 ok
+  rw   12288 bytes at lba 25 ok
+  rw   69632 bytes at lba 49 ok
+  rw  131072 bytes at lba 185 ok
+  rw  524288 bytes at lba 441 ok
+  batch of 32 writes: 1 doorbell write(s)
+OK (0 failures)

@@ -122,6 +122,56 @@ int nvm_qpair_alloc(struct nvm_ctrl *ctrl, const struct nvm_qpair_opts *opts,
 /* Deletes the queues; outstanding commands complete with NVM_STATUS_ABORTED. */
 void nvm_qpair_free(struct nvm_qpair *qp);
 
+uint16_t nvm_qpair_id(const struct nvm_qpair *qp);
+
+/* Commands submitted and not yet completed (or timed out). */
+uint32_t nvm_qpair_outstanding(const struct nvm_qpair *qp);
+
+struct nvm_qpair_stats {
+    uint64_t submitted;
+    uint64_t completed;
+    uint64_t doorbells; /* SQ tail doorbell writes */
+    uint64_t timeouts;
+    uint64_t late_completions;
+};
+void nvm_qpair_get_stats(const struct nvm_qpair *qp, struct nvm_qpair_stats *out);
+
+/* ---- DMA memory ---- */
+
+/* Page-aligned, zeroed memory the controller can access; NULL when exhausted. */
+void *nvm_dma_alloc(struct nvm_ctrl *ctrl, size_t size, uint64_t *iova);
+void nvm_dma_free(struct nvm_ctrl *ctrl, void *ptr);
+
+/* ---- I/O ----
+ *
+ * Asynchronous calls queue a command and return 0, -EINVAL (bad arguments:
+ * buffer not from nvm_dma_alloc, not 4 KiB aligned, or larger than max_xfer),
+ * -ENODEV (unknown namespace) or -EAGAIN (queue full). They do not ring the
+ * doorbell: queue a batch, then nvm_qpair_kick() or nvm_qpair_poll(), which
+ * kicks first, so a batch costs one MMIO write. The callback runs from
+ * nvm_qpair_poll() on the owning thread. nlb is a count of logical blocks.
+ */
+int nvm_read(struct nvm_qpair *qp, uint32_t nsid, void *buf, uint64_t lba, uint32_t nlb, nvm_cb cb,
+             void *arg);
+int nvm_write(struct nvm_qpair *qp, uint32_t nsid, const void *buf, uint64_t lba, uint32_t nlb,
+              nvm_cb cb, void *arg);
+int nvm_flush(struct nvm_qpair *qp, uint32_t nsid, nvm_cb cb, void *arg);
+
+/* Rings the SQ tail doorbell for everything queued since the last kick. */
+void nvm_qpair_kick(struct nvm_qpair *qp);
+
+/* Kicks, then processes up to max completions; returns how many were processed. */
+int nvm_qpair_poll(struct nvm_qpair *qp, uint32_t max);
+
+/*
+ * Synchronous helpers: submit, then poll until done. Return 0, a positive
+ * NVMe status (see nvm_status_str), or -errno (-ETIMEDOUT on timeout).
+ */
+int nvm_read_sync(struct nvm_qpair *qp, uint32_t nsid, void *buf, uint64_t lba, uint32_t nlb);
+int nvm_write_sync(struct nvm_qpair *qp, uint32_t nsid, const void *buf, uint64_t lba,
+                   uint32_t nlb);
+int nvm_flush_sync(struct nvm_qpair *qp, uint32_t nsid);
+
 #ifdef __cplusplus
 }
 #endif

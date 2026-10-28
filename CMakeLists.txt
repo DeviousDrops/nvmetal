@@ -29,6 +29,7 @@ add_library(nvmetal STATIC
   src/util.c
   src/vfio.c
   src/dma.c
+  src/prp.c
   src/qpair.c
   src/ctrl.c
   src/status.c

@@ -31,7 +31,7 @@ static void rig_init(struct rig *r, uint16_t depth, uint64_t timeout_ns)
     m.sq_db = &r->sq_db;
     m.cq_db = &r->cq_db;
     REQUIRE(m.sq && m.cq);
-    REQUIRE(nvm_qpair_init(&r->qp, &m, &r->pool, timeout_ns) == 0);
+    REQUIRE(nvm_qpair_init(&r->qp, &m, &r->pool, 8192, timeout_ns) == 0);
     r->dev_phase = 1;
 }
 
