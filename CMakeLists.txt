@@ -25,5 +25,11 @@ endif()
 
 find_package(Threads REQUIRED)
 
+add_library(nvmetal STATIC
+  src/util.c
+)
+target_include_directories(nvmetal PUBLIC include PRIVATE src)
+target_link_libraries(nvmetal PUBLIC Threads::Threads)
+
 enable_testing()
 add_subdirectory(tests)
