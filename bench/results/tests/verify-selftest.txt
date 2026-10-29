@@ -1,0 +1,8 @@
+thread 1: lba 422576: crc mismatch (found lba 422576 seq 1, want seq 1)
+thread 0: lba 222752: stale sequence (lost write) (found lba 222752 seq 1001, want seq 1)
+thread 0: lba 176072: crc mismatch (found lba 176072 seq 1, want seq 1)
+thread 1: lba 507640: stale sequence (lost write) (found lba 507640 seq 1001, want seq 1)
+thread 1: lba 398736: wrong lba (misdirected) (found lba 398744 seq 1, want seq 1)
+thread 0: lba 133696: wrong lba (misdirected) (found lba 133704 seq 1, want seq 1)
+injected 6 corrupt blocks, detected 6
+written 0.06 GiB, verified 0.06 GiB (16446 blocks), 1266 commands (min 626/thread = 19x queue depth), 6 mismatches, 0 I/O errors, 0.1 s: PASS
