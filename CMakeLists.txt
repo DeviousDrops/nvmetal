@@ -33,6 +33,7 @@ add_library(nvmetal STATIC
   src/qpair.c
   src/ctrl.c
   src/status.c
+  src/irq.c
 )
 target_include_directories(nvmetal PUBLIC include PRIVATE src)
 target_link_libraries(nvmetal PUBLIC Threads::Threads)
