@@ -1,0 +1,5 @@
+relaxed doorbell store: exit 66, 5 ThreadSanitizer reports
+WARNING: ThreadSanitizer: data race (pid=8240)
+  Read of size 8 at 0x7ffff4600000 by thread T1:
+    #0 __tsan_memcpy <null> (test_fake+0x5c55f) (BuildId: 470c0713703ef0c29bb8a19cf3af51aad4e39190)
+    #1 device_loop /tmp/tmp.oUJe4NcZJx/tests/fakectrl.c:183:22 (test_fake+0xe2386) (BuildId: 470c0713703ef0c29bb8a19cf3af51aad4e39190)
