@@ -84,6 +84,7 @@ struct nvm_qpair {
     uint64_t timeout_ns;
     uint32_t max_xfer;
     unsigned prp_pages_per_req;
+    int irq_fd;       /* eventfd of this CQ's MSI-X vector, -1 when polled */
     uint32_t ns_nsid; /* one-entry namespace cache for the public read/write calls */
     uint32_t ns_lba_size;
 
