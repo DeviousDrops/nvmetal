@@ -1,0 +1,6 @@
+read at NSZE               lba 4194304    -> LBA Out of Range (sct 0 sc 0x80, dnr): ok
+read straddling the end    lba 4194303    -> LBA Out of Range (sct 0 sc 0x80, dnr): ok
+read far past the end      lba 5194304    -> LBA Out of Range (sct 0 sc 0x80, dnr): ok
+write at NSZE              lba 4194304    -> LBA Out of Range (sct 0 sc 0x80, dnr): ok
+read of last LBA           lba 4194303    -> success
+PASS
