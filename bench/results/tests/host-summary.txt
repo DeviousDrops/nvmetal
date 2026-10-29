@@ -1,0 +1,8 @@
+toolchain: gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0; Ubuntu clang version 21.1.8 (6ubuntu1)
+PASS gcc
+PASS clang
+PASS asan-ubsan
+PASS tsan
+PASS tsan-negative-control
+PASS format
+0 step(s) failed

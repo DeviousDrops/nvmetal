@@ -1,0 +1,113 @@
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/deviousdrops/projects/nvmetal/build-ci-asan
+ninja: Entering directory `build-ci-asan'
+ninja: no work to do.
+UpdateCTestConfiguration  from :/home/deviousdrops/projects/nvmetal/build-ci-asan/DartConfiguration.tcl
+Test project /home/deviousdrops/projects/nvmetal/build-ci-asan
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: test_spec
+
+1: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_spec
+1: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+1: Test timeout computed to be: 10000000
+1: [PASS] sqe_cdw0_packing
+1: [PASS] cqe_dw3_decode
+1: [PASS] cap_decode
+1: [PASS] doorbell_offsets
+1: [PASS] aqa_encoding
+1: 5 cases, 5 passed, 0 failed, 23 checks
+1/6 Test #1: test_spec ........................   Passed    0.01 sec
+test 2
+    Start 2: test_dma
+
+2: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_dma
+2: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+2: Test timeout computed to be: 10000000
+2: [PASS] alloc_is_page_aligned_zeroed_and_translated
+2: [PASS] lookup_outside_pool
+2: [PASS] exhaustion_and_coalescing
+2: [PASS] chunk_rule_without_contiguous_iova
+2: [PASS] random_alloc_free_never_overlaps
+2: 5 cases, 5 passed, 0 failed, 25 checks
+2/6 Test #2: test_dma .........................   Passed    0.09 sec
+test 3
+    Start 3: test_qpair
+
+3: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_qpair
+3: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+3: Test timeout computed to be: 10000000
+3: nvmetal warn: qid 1: CID 0 timed out after 2 ms
+3: [PASS] ring_math
+3: [PASS] cid_allocator_exhaustion_and_reuse
+3: [PASS] submit_does_not_ring_until_kick
+3: [PASS] wraparound_and_phase_flips
+3: [PASS] out_of_order_completion_and_status
+3: [PASS] timeout_then_late_completion
+3: [PASS] callback_can_resubmit
+3: [PASS] status_strings
+3: 8 cases, 8 passed, 0 failed, 404 checks
+3/6 Test #3: test_qpair .......................   Passed    0.01 sec
+test 4
+    Start 4: test_prp
+
+4: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_prp
+4: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+4: Test timeout computed to be: 10000000
+4: [PASS] single_page_sizes
+4: [PASS] two_pages_use_prp2_directly
+4: [PASS] three_pages_need_a_list
+4: [PASS] list_exactly_fills_one_page
+4: [PASS] list_crosses_into_second_page
+4: [PASS] list_spans_three_pages
+4: [PASS] every_page_count_up_to_four_list_pages
+4: [PASS] rejects_bad_input
+4: 8 cases, 8 passed, 0 failed, 16426 checks
+4/6 Test #4: test_prp .........................   Passed    0.02 sec
+test 5
+    Start 5: test_crc32c
+
+5: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_crc32c
+5: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+5: Test timeout computed to be: 10000000
+5: [PASS] check_value
+5: [PASS] rfc3720_vectors
+5: [PASS] matches_bitwise_at_every_alignment_and_length
+5: 3 cases, 3 passed, 0 failed, 8 checks
+5/6 Test #5: test_crc32c ......................   Passed    0.01 sec
+test 6
+    Start 6: test_fake
+
+6: Test command: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests/test_fake
+6: Working Directory: /home/deviousdrops/projects/nvmetal/build-ci-asan/tests
+6: Test timeout computed to be: 1800
+6: nvmetal warn: qid 1: CID 0 timed out after 100 ms
+6:   1 qpair, depth 64: 1000000 cmds, 5881 MiB, 9918 injected errors, 899305 reordered, max held 16, 36818 doorbells
+6: [PASS] stress_single_qpair
+6:   thread: 250000 cmds, 1472 MiB, 1246 injected errors, 205188 reordered, max held 8, 17087 doorbells
+6:   thread: 250000 cmds, 1477 MiB, 1256 injected errors, 205246 reordered, max held 8, 16918 doorbells
+6:   thread: 250000 cmds, 1475 MiB, 1320 injected errors, 205237 reordered, max held 8, 17349 doorbells
+6:   thread: 250000 cmds, 1476 MiB, 1239 injected errors, 204786 reordered, max held 8, 17135 doorbells
+6: [PASS] stress_four_threads_own_qpairs
+6:   depth 2: 100000 cmds, 595 MiB, 0 injected errors, 0 reordered, max held 1, 100000 doorbells
+6: [PASS] depth_two_in_order
+6:   timeout: 2002 cmds, 11 MiB, 0 injected errors, 2001 reordered, max held 4, 500 doorbells
+6: [PASS] timeout_then_late_completion
+6: [PASS] lba_out_of_range_reported
+6: [PASS] teardown_aborts_outstanding
+6: 6 cases, 6 passed, 0 failed, 67 checks
+6/6 Test #6: test_fake ........................   Passed    3.99 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Label Time Summary:
+fake    =   3.99 sec*proc (1 test)
+unit    =   0.13 sec*proc (5 tests)
+
+Total Test time (real) =   4.12 sec

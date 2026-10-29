@@ -1,0 +1,30 @@
+aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/nvm/nvmetal/build-arm64
+ninja: Entering directory `build-arm64'
+ninja: no work to do.
+dmb osh* instructions in qpair.o: 5
+Internal ctest changing into directory: /home/nvm/nvmetal/build-arm64
+Test project /home/nvm/nvmetal/build-arm64
+    Start 1: test_spec
+1/6 Test #1: test_spec ........................   Passed    0.02 sec
+    Start 2: test_dma
+2/6 Test #2: test_dma .........................   Passed    0.14 sec
+    Start 3: test_qpair
+3/6 Test #3: test_qpair .......................   Passed    0.03 sec
+    Start 4: test_prp
+4/6 Test #4: test_prp .........................   Passed    0.05 sec
+    Start 5: test_crc32c
+5/6 Test #5: test_crc32c ......................   Passed    0.02 sec
+    Start 6: test_fake
+6/6 Test #6: test_fake ........................   Passed    3.06 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Label Time Summary:
+fake    =   3.06 sec*proc (1 test)
+unit    =   0.26 sec*proc (5 tests)
+
+Total Test time (real) =   3.32 sec
