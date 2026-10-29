@@ -18,3 +18,10 @@ target_include_directories(test_crc32c PRIVATE ${PROJECT_SOURCE_DIR}/tools)
 target_link_libraries(test_crc32c PRIVATE Threads::Threads)
 add_test(NAME test_crc32c COMMAND test_crc32c)
 set_tests_properties(test_crc32c PROPERTIES LABELS unit)
+
+# The real queue pair code against the threaded fake controller.
+add_executable(test_fake test_fake.c fakectrl.c)
+target_include_directories(test_fake PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(test_fake PRIVATE nvmetal)
+add_test(NAME test_fake COMMAND test_fake)
+set_tests_properties(test_fake PROPERTIES LABELS fake TIMEOUT 1800)
