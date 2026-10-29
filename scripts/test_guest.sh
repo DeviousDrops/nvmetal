@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Guest integration tests. Run inside the VM from the repo root after building:
 #   sudo scripts/test_guest.sh [suite...]
-# Suites: identify io verify selftest oob. Each prints PASS/FAIL lines; the exit status is the
+# Suites: identify io verify selftest oob crosscheck restart. Each prints PASS/FAIL lines; the exit status is the
 # number of failed suites. Output is also kept under bench/results/tests/.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -81,8 +81,67 @@ suite_oob() {
     [[ $rc -eq 0 ]] && pass oob || fail oob
 }
 
+wait_blkdev() {
+    local d
+    for _ in $(seq 1 100); do
+        d=$(nvme_blkdev "$1") && [[ -b $d ]] && { echo "$d"; return 0; }
+        sleep 0.1
+    done
+    return 1
+}
+
+suite_crosscheck() {
+    # nvmetal writes, the kernel reads; then the kernel writes, nvmetal reads.
+    local log="$OUT/crosscheck.txt" ok=1 dev exp got
+    : > "$log"
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    "$B/tools/nvmetal-verify" --write-pattern --offset 256M --length 64M --seed 42 \
+        "$NVMDATA_BDF" 2>> "$log" || ok=0
+    exp=$("$B/tools/nvmetal-verify" --gen-pattern --offset 256M --length 64M --seed 42 |
+          sha256sum | cut -d' ' -f1)
+    scripts/bind.sh "$NVMDATA_BDF" nvme >> "$log"
+    dev=$(wait_blkdev "$NVMDATA_BDF") || { echo "no block device" >> "$log"; ok=0; }
+    got=$(dd if="$dev" iflag=direct bs=1M skip=256 count=64 status=none | sha256sum | cut -d' ' -f1)
+    echo "nvmetal->kernel: expected $exp kernel read $got ($dev)" >> "$log"
+    [[ -n $exp && $exp == "$got" ]] || ok=0
+
+    local tmp
+    tmp=$(mktemp)
+    head -c 64M /dev/urandom > "$tmp"
+    exp=$(sha256sum < "$tmp" | cut -d' ' -f1)
+    dd if="$tmp" of="$dev" oflag=direct bs=1M seek=512 conv=fsync status=none || ok=0
+    rm -f "$tmp"
+    scripts/bind.sh "$NVMDATA_BDF" vfio >> "$log"
+    got=$("$B/tools/nvmetal-verify" --dump --offset 512M --length 64M "$NVMDATA_BDF" 2>> "$log" |
+          sha256sum | cut -d' ' -f1)
+    echo "kernel->nvmetal: kernel wrote $exp nvmetal read $got" >> "$log"
+    [[ $exp == "$got" ]] || ok=0
+    cat "$log"
+    ((ok)) && pass crosscheck || fail crosscheck
+}
+
+suite_restart() {
+    # open, verify a little, close: 50 times, every one clean.
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    local log="$OUT/restart.txt" bad=0 f0 f1
+    : > "$log"
+    f0=$(dmar_faults)
+    for i in $(seq 1 50); do
+        if "$B/tools/nvmetal-verify" --bytes 8M --threads 1 --qd 16 --region 64M --seed "$i" \
+            "$NVMDATA_BDF" >> "$log" 2>&1; then
+            :
+        else
+            echo "iteration $i failed" >> "$log"; bad=$((bad + 1))
+        fi
+    done
+    f1=$(dmar_faults)
+    "$B/tools/nvmetal-identify" "$NVMDATA_BDF" > /dev/null 2>> "$log" || bad=$((bad + 1))
+    echo "50 iterations, $bad failed, $(grep -c ': PASS$' "$log") PASS lines, DMAR faults $f0 -> $f1" | tee -a "$log"
+    [[ $bad -eq 0 && $f1 -eq $f0 ]] && pass restart || fail restart
+}
+
 suites=("$@")
-[[ ${#suites[@]} -eq 0 ]] && suites=(identify io verify selftest oob)
+[[ ${#suites[@]} -eq 0 ]] && suites=(identify io verify selftest oob crosscheck restart)
 for s in "${suites[@]}"; do
     "suite_$s"
 done
