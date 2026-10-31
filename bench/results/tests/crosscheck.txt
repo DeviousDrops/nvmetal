@@ -3,4 +3,4 @@ wrote 67108864 bytes of pattern seed 42 at offset 268435456
 nvmetal->kernel: expected d501bac4c0c2255ef7a5b6d0ae46d57f67c2e397a5a676f372fc555d49805579 kernel read d501bac4c0c2255ef7a5b6d0ae46d57f67c2e397a5a676f372fc555d49805579 (/dev/nvme0n1)
 0000:00:04.0: nvme -> vfio-pci
 IOMMU group 4, device node /dev/vfio/4
-kernel->nvmetal: kernel wrote 8a723e9eb595e23594d2f4c53146e5e5e525d034bfcf3213c36db25fd55a6546 nvmetal read 8a723e9eb595e23594d2f4c53146e5e5e525d034bfcf3213c36db25fd55a6546
+kernel->nvmetal: kernel wrote 31c2b6738fda55df8339cefb9445d3773136e23806fdb520c9076c2a3e9e7c51 nvmetal read 31c2b6738fda55df8339cefb9445d3773136e23806fdb520c9076c2a3e9e7c51
