@@ -110,9 +110,15 @@ const struct nvm_ns_info *nvm_ctrl_ns_at(const struct nvm_ctrl *ctrl, uint32_t i
 
 /* ---- Queue pairs ---- */
 
+enum nvm_qpair_mode {
+    NVM_QP_POLL = 0, /* completions found by polling the CQ; no interrupts */
+    NVM_QP_IRQ = 1,  /* CQ raises an MSI-X interrupt; nvm_qpair_wait() can sleep */
+};
+
 struct nvm_qpair_opts {
     uint32_t depth;      /* entries per queue, 0 = 256; at most CAP.MQES + 1 */
     uint32_t timeout_ms; /* per-command timeout, 0 = 30 s */
+    enum nvm_qpair_mode mode;
 };
 
 /* Creates an I/O completion queue and submission queue pair on the controller. */
@@ -133,6 +139,8 @@ struct nvm_qpair_stats {
     uint64_t doorbells; /* SQ tail doorbell writes */
     uint64_t timeouts;
     uint64_t late_completions;
+    uint64_t irq_wakeups;      /* nvm_qpair_wait() woken by the eventfd */
+    uint64_t spurious_wakeups; /* ... and found nothing new */
 };
 void nvm_qpair_get_stats(const struct nvm_qpair *qp, struct nvm_qpair_stats *out);
 
@@ -162,6 +170,17 @@ void nvm_qpair_kick(struct nvm_qpair *qp);
 
 /* Kicks, then processes up to max completions; returns how many were processed. */
 int nvm_qpair_poll(struct nvm_qpair *qp, uint32_t max);
+
+/*
+ * Interrupt mode: polls once, and if nothing completed sleeps on the queue's
+ * MSI-X eventfd until something does or timeout_ms passes (-1 = no limit).
+ * Returns completions processed, 0 on timeout, or -errno. In poll mode it is
+ * nvm_qpair_poll().
+ */
+int nvm_qpair_wait(struct nvm_qpair *qp, uint32_t max, int timeout_ms);
+
+/* The eventfd behind an interrupt-mode queue pair (for epoll), or -1. */
+int nvm_qpair_irq_fd(const struct nvm_qpair *qp);
 
 /*
  * Synchronous helpers: submit, then poll until done. Return 0, a positive

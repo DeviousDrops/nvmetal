@@ -52,6 +52,7 @@ static struct {
     uint64_t offset, length;
     int json;
     int inject; /* corrupted blocks planted per pass, to prove detection works */
+    int irq;    /* interrupt-mode queue pairs: sleep on MSI-X instead of spinning */
     int mode;   /* 0 verify, 1 write-pattern, 2 dump, 3 gen-pattern, 4 oob */
 } opt = {.bytes = 1ull << 30, .threads = 4, .qd = 32, .min_bs = 4096, .seed = 1};
 
@@ -263,7 +264,15 @@ static int run_extents(struct thr *t, const struct extent *ex, size_t n, int is_
             t->commands++;
             next++;
         }
-        nvm_qpair_poll(t->qp, (uint32_t)opt.qd);
+        if (opt.irq) {
+            int rc = nvm_qpair_wait(t->qp, (uint32_t)opt.qd, 10000);
+            if (rc <= 0) {
+                report(t, "interrupt wait returned %d with commands in flight", rc);
+                return rc ? rc : -ETIMEDOUT;
+            }
+        } else {
+            nvm_qpair_poll(t->qp, (uint32_t)opt.qd);
+        }
     }
     return 0;
 }
@@ -303,7 +312,8 @@ static void inject_corruption(struct thr *t)
 static void *verify_thread(void *arg)
 {
     struct thr *t = arg;
-    struct nvm_qpair_opts qo = {.depth = (uint32_t)opt.qd + 1};
+    struct nvm_qpair_opts qo = {.depth = (uint32_t)opt.qd + 1,
+                                .mode = opt.irq ? NVM_QP_IRQ : NVM_QP_POLL};
     int rc = nvm_qpair_alloc(t->c, &qo, &t->qp);
     if (rc) {
         report(t, "qpair alloc: %s", strerror(-rc));
@@ -409,14 +419,16 @@ static int mode_verify(struct nvm_ctrl *c, const struct nvm_ns_info *ns)
                 mism);
     }
     if (opt.json) {
-        printf("{\"bdf\":\"%s\",\"threads\":%d,\"qd\":%d,\"min_bs\":%u,\"max_bs\":%u,"
-               "\"bytes_written\":%" PRIu64 ",\"bytes_verified\":%" PRIu64
-               ",\"blocks_checked\":%" PRIu64 ",\"commands\":%" PRIu64
-               ",\"min_commands_per_thread\":%" PRIu64 ",\"queue_depth_multiple\":%.1f,"
-               "\"mismatches\":%" PRIu64 ",\"io_errors\":%" PRIu64 ",\"seconds\":%.2f,"
-               "\"result\":\"%s\"}\n",
-               opt.bdf, opt.threads, opt.qd, opt.min_bs, opt.max_bs, w, v, blocks, cmds, cmds_min,
-               (double)cmds_min / (opt.qd + 1), mism, ioerr, secs, ok ? "pass" : "fail");
+        printf(
+            "{\"bdf\":\"%s\",\"mode\":\"%s\",\"threads\":%d,\"qd\":%d,\"min_bs\":%u,\"max_bs\":%u,"
+            "\"bytes_written\":%" PRIu64 ",\"bytes_verified\":%" PRIu64
+            ",\"blocks_checked\":%" PRIu64 ",\"commands\":%" PRIu64
+            ",\"min_commands_per_thread\":%" PRIu64 ",\"queue_depth_multiple\":%.1f,"
+            "\"mismatches\":%" PRIu64 ",\"io_errors\":%" PRIu64 ",\"seconds\":%.2f,"
+            "\"result\":\"%s\"}\n",
+            opt.bdf, opt.irq ? "irq" : "poll", opt.threads, opt.qd, opt.min_bs, opt.max_bs, w, v,
+            blocks, cmds, cmds_min, (double)cmds_min / (opt.qd + 1), mism, ioerr, secs,
+            ok ? "pass" : "fail");
     } else {
         printf("written %.2f GiB, verified %.2f GiB (%" PRIu64 " blocks), %" PRIu64
                " commands (min %" PRIu64 "/thread = %.0fx queue depth), %" PRIu64
@@ -578,6 +590,7 @@ static void usage(const char *p)
             "  --region N      bytes of the namespace to use (default: all)\n"
             "  --seed N        random seed\n"
             "  --json          machine readable summary\n"
+            "  --irq           interrupt-mode queue pairs (MSI-X) instead of polling\n"
             "  --write-pattern | --dump  --offset N --length N   pattern I/O\n"
             "  --gen-pattern --offset N --length N                pattern to stdout\n"
             "  --oob           out-of-range error path test\n"
@@ -588,23 +601,15 @@ static void usage(const char *p)
 int main(int argc, char **argv)
 {
     static const struct option lo[] = {
-        {"bytes", required_argument, 0, 'b'},
-        {"threads", required_argument, 0, 't'},
-        {"qd", required_argument, 0, 'q'},
-        {"min-bs", required_argument, 0, 'm'},
-        {"max-bs", required_argument, 0, 'M'},
-        {"region", required_argument, 0, 'r'},
-        {"seed", required_argument, 0, 's'},
-        {"json", no_argument, 0, 'j'},
-        {"offset", required_argument, 0, 'o'},
-        {"length", required_argument, 0, 'l'},
-        {"write-pattern", no_argument, 0, 1},
-        {"dump", no_argument, 0, 2},
-        {"gen-pattern", no_argument, 0, 3},
-        {"oob", no_argument, 0, 4},
-        {"inject", required_argument, 0, 'i'},
-        {"help", no_argument, 0, 'h'},
-        {0, 0, 0, 0},
+        {"bytes", required_argument, 0, 'b'},  {"threads", required_argument, 0, 't'},
+        {"qd", required_argument, 0, 'q'},     {"min-bs", required_argument, 0, 'm'},
+        {"max-bs", required_argument, 0, 'M'}, {"region", required_argument, 0, 'r'},
+        {"seed", required_argument, 0, 's'},   {"json", no_argument, 0, 'j'},
+        {"offset", required_argument, 0, 'o'}, {"length", required_argument, 0, 'l'},
+        {"write-pattern", no_argument, 0, 1},  {"dump", no_argument, 0, 2},
+        {"gen-pattern", no_argument, 0, 3},    {"oob", no_argument, 0, 4},
+        {"inject", required_argument, 0, 'i'}, {"irq", no_argument, 0, 'I'},
+        {"help", no_argument, 0, 'h'},         {0, 0, 0, 0},
     };
     int ch;
     while ((ch = getopt_long(argc, argv, "h", lo, NULL)) != -1) {
@@ -635,6 +640,9 @@ int main(int argc, char **argv)
             break;
         case 'i':
             opt.inject = atoi(optarg);
+            break;
+        case 'I':
+            opt.irq = 1;
             break;
         case 'o':
             opt.offset = parse_size(optarg);

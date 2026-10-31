@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Guest integration tests. Run inside the VM from the repo root after building:
 #   sudo scripts/test_guest.sh [suite...]
-# Suites: identify io verify selftest oob crosscheck restart. Each prints PASS/FAIL lines; the exit status is the
+# Suites: identify io verify selftest oob crosscheck restart irq. Each prints PASS/FAIL lines; the exit status is the
 # number of failed suites. Output is also kept under bench/results/tests/.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -140,8 +140,21 @@ suite_restart() {
     [[ $bad -eq 0 && $f1 -eq $f0 ]] && pass restart || fail restart
 }
 
+suite_irq() {
+    # MSI-X: the interrupt smoke test, then a 256 MiB verify sleeping on interrupts.
+    scripts/bind.sh "$NVMDATA_BDF" vfio >/dev/null
+    local ok=1
+    "$B/tests/guest/irq_smoke" "$NVMDATA_BDF" > "$OUT/irq_smoke.txt" 2>&1 || ok=0
+    cat "$OUT/irq_smoke.txt"
+    "$B/tools/nvmetal-verify" --irq --bytes 256M --threads 4 --qd 32 --json "$NVMDATA_BDF" \
+        > "$OUT/verify-irq.json" 2> "$OUT/verify-irq.err" || ok=0
+    cat "$OUT/verify-irq.json"
+    [[ $(jq -r .result "$OUT/verify-irq.json" 2>/dev/null) == pass ]] || ok=0
+    ((ok)) && pass irq || fail irq
+}
+
 suites=("$@")
-[[ ${#suites[@]} -eq 0 ]] && suites=(identify io verify selftest oob crosscheck restart)
+[[ ${#suites[@]} -eq 0 ]] && suites=(identify io verify selftest oob crosscheck restart irq)
 for s in "${suites[@]}"; do
     "suite_$s"
 done

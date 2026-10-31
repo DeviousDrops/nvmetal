@@ -4,12 +4,14 @@
  * order follows §7.6.1 "Initialization" and §7.6.2 "Shutdown".
  */
 #include "ctrl.h"
+#include "irq.h"
 #include "mmio.h"
 #include "nvme_spec.h"
 #include "util.h"
 
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/eventfd.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -263,6 +265,8 @@ int nvm_ctrl_open(const char *bdf, const struct nvm_ctrl_opts *opts, struct nvm_
         return -ENOMEM;
     pthread_mutex_init(&c->admin_lock, NULL);
     pthread_mutex_init(&c->qid_lock, NULL);
+    for (int i = 0; i <= NVM_MAX_QID; i++)
+        c->irq_fds[i] = -1;
     snprintf(c->info.bdf, sizeof(c->info.bdf), "%s", bdf);
 
     int rc = nvm_vfio_open(&c->vfio, bdf);
@@ -406,6 +410,10 @@ void nvm_ctrl_close(struct nvm_ctrl *c)
         }
     }
     ctrl_shutdown(c);
+    if (c->nirq)
+        nvm_irq_msix_disable(&c->vfio);
+    for (uint32_t i = 0; i < c->nirq; i++)
+        close(c->irq_fds[i]);
     nvm_qpair_fini(&c->admin);
     nvm_dma_pool_fini(&c->pool);
     nvm_vfio_close(&c->vfio);
@@ -435,6 +443,42 @@ const struct nvm_ns_info *nvm_ctrl_ns_at(const struct nvm_ctrl *c, uint32_t i)
 
 /* ---- I/O queue pairs ---- */
 
+/*
+ * Enables MSI-X once, for every vector nvmetal can use, with one eventfd
+ * each. All vectors at once because changing the set later means disabling
+ * and re-enabling MSI-X on kernels without dynamic MSI-X allocation.
+ * Called with qid_lock held.
+ */
+static int irq_setup(struct nvm_ctrl *c)
+{
+    if (c->nirq)
+        return 0;
+    uint32_t n = c->vfio.msix_count;
+    if (n > (uint32_t)c->info.max_qpairs + 1)
+        n = (uint32_t)c->info.max_qpairs + 1;
+    if (n < 2) {
+        nvm_err("%s: no MSI-X vectors for I/O queues", c->info.bdf);
+        return -ENOTSUP;
+    }
+    for (uint32_t i = 0; i < n; i++) {
+        c->irq_fds[i] = eventfd(0, EFD_CLOEXEC);
+        if (c->irq_fds[i] < 0) {
+            int e = -errno;
+            while (i--)
+                close(c->irq_fds[i]);
+            return e;
+        }
+    }
+    int rc = nvm_irq_msix_enable(&c->vfio, c->irq_fds, n);
+    if (rc) {
+        for (uint32_t i = 0; i < n; i++)
+            close(c->irq_fds[i]);
+        return rc;
+    }
+    c->nirq = n;
+    return 0;
+}
+
 static int delete_queue(struct nvm_ctrl *c, uint8_t opc, uint16_t qid)
 {
     struct nvme_sqe cmd = {.opc = opc, .cdw10 = qid};
@@ -448,9 +492,19 @@ int nvm_qpair_alloc(struct nvm_ctrl *c, const struct nvm_qpair_opts *opts, struc
     if (depth < 2 || depth > c->info.max_queue_entries || depth > 32768)
         return -EINVAL;
 
+    int irq = opts && opts->mode == NVM_QP_IRQ;
     pthread_mutex_lock(&c->qid_lock);
+    if (irq) {
+        int rc = irq_setup(c);
+        if (rc) {
+            pthread_mutex_unlock(&c->qid_lock);
+            return rc;
+        }
+    }
     uint16_t qid = 0;
     for (uint16_t q = 1; q <= c->info.max_qpairs; q++) {
+        if (irq && q >= c->nirq)
+            break;
         if (!c->qpairs[q]) {
             qid = q;
             /* Reserve the slot; the real pointer is stored on success. */
@@ -487,13 +541,18 @@ int nvm_qpair_alloc(struct nvm_ctrl *c, const struct nvm_qpair_opts *opts, struc
         goto fail;
     qp->ctrl = c;
 
-    /* Create I/O CQ (§5.3): physically contiguous, interrupts off (polled). */
+    /* Create I/O CQ (§5.3): physically contiguous; interrupts off when polled,
+     * else IEN with vector IV = QID. */
     struct nvme_sqe cmd = {
         .opc = NVME_ADMIN_CREATE_CQ,
         .prp1 = cq_iova,
         .cdw10 = (depth - 1) << 16 | qid,
-        .cdw11 = NVME_CQ_PC,
+        .cdw11 = irq ? (uint32_t)qid << 16 | NVME_CQ_IEN | NVME_CQ_PC : NVME_CQ_PC,
     };
+    if (irq) {
+        qp->irq_fd = c->irq_fds[qid];
+        nvm_irq_drain(qp->irq_fd); /* left over from a previous user of the vector */
+    }
     if ((rc = nvm_admin_sync(c, &cmd, NULL, 0, NULL)) != 0)
         goto fail_init;
     /* Create I/O SQ (§5.4) bound to the CQ with the same QID. */

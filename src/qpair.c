@@ -1,6 +1,7 @@
 #include "qpair.h"
 #include "ctrl.h"
 #include "dma.h"
+#include "irq.h"
 #include "mmio.h"
 #include "prp.h"
 #include "util.h"
@@ -38,6 +39,7 @@ int nvm_qpair_init(struct nvm_qpair *qp, const struct nvm_qpair_mem *mem, struct
     qp->pool = pool;
     qp->timeout_ns = timeout_ns;
     qp->max_xfer = max_xfer;
+    qp->irq_fd = -1;
     /*
      * The CQ memory is zeroed, so every entry's phase tag reads 0 and the
      * device writes its first pass with phase 1 (§4.6, "Phase Tag").
@@ -347,6 +349,48 @@ void nvm_qpair_get_stats(const struct nvm_qpair *qp, struct nvm_qpair_stats *out
     *out = qp->stats;
 }
 
+int nvm_qpair_wait(struct nvm_qpair *qp, uint32_t max, int timeout_ms)
+{
+    int n = nvm_qpair_poll_internal(qp, max);
+    if (n || qp->irq_fd < 0)
+        return n;
+    /*
+     * Nothing yet: sleep on the CQ's MSI-X eventfd. No wakeup can be lost: an
+     * entry posted after the poll above raises the interrupt after it is
+     * written, which leaves the eventfd readable until consumed here. An
+     * interrupt for entries already consumed only causes a spurious wakeup,
+     * after which the loop polls and sleeps again.
+     */
+    uint64_t deadline = timeout_ms >= 0 ? nvm_now_ns() + (uint64_t)timeout_ms * 1000000ull : 0;
+    for (;;) {
+        int left = -1;
+        if (timeout_ms >= 0) {
+            uint64_t now = nvm_now_ns();
+            if (now >= deadline)
+                return 0;
+            left = (int)((deadline - now + 999999) / 1000000);
+        } else if (qp->timeout_ns && qp->outstanding) {
+            /* Wake at least once a second so command timeouts still fire. */
+            left = 1000;
+        }
+        int rc = nvm_irq_wait(qp->irq_fd, left);
+        if (rc < 0 && rc != -EINTR)
+            return rc;
+        qp->stats.irq_wakeups += rc > 0;
+        n = nvm_qpair_poll_internal(qp, max);
+        if (n)
+            return n;
+        if (rc == 0 && qp->timeout_ns && qp->outstanding)
+            nvm_qpair_check_timeouts(qp, nvm_coarse_ns());
+        qp->stats.spurious_wakeups += rc > 0;
+    }
+}
+
+int nvm_qpair_irq_fd(const struct nvm_qpair *qp)
+{
+    return qp->irq_fd;
+}
+
 struct sync_wait {
     int done;
     uint32_t status;
@@ -363,8 +407,12 @@ static int sync_finish(struct nvm_qpair *qp, int rc, struct sync_wait *w)
 {
     if (rc)
         return rc;
-    while (!w->done)
-        nvm_qpair_poll_internal(qp, qp->depth);
+    while (!w->done) {
+        if (qp->irq_fd >= 0)
+            nvm_qpair_wait(qp, qp->depth, -1);
+        else
+            nvm_qpair_poll_internal(qp, qp->depth);
+    }
     if (w->status == NVM_STATUS_TIMEOUT)
         return -ETIMEDOUT;
     if (w->status == NVM_STATUS_ABORTED)

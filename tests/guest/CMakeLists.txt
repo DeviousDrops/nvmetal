@@ -8,3 +8,4 @@ endfunction()
 
 nvmetal_guest_test(vfio_probe)
 nvmetal_guest_test(io_smoke)
+nvmetal_guest_test(irq_smoke)

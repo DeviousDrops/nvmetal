@@ -32,6 +32,10 @@ struct nvm_ctrl {
 
     pthread_mutex_t qid_lock;
     struct nvm_qpair *qpairs[NVM_MAX_QID + 1]; /* by QID, NULL when free */
+
+    /* MSI-X, enabled on the first interrupt-mode queue pair (under qid_lock). */
+    int irq_fds[NVM_MAX_QID + 1]; /* eventfd per vector; vector q serves QID q */
+    uint32_t nirq;
 };
 
 /*

@@ -1,0 +1,1 @@
+{"bdf":"0000:00:04.0","mode":"irq","threads":4,"qd":32,"min_bs":4096,"max_bs":524288,"bytes_written":268877824,"bytes_verified":268877824,"blocks_checked":65644,"commands":9175,"min_commands_per_thread":2274,"queue_depth_multiple":68.9,"mismatches":0,"io_errors":0,"seconds":0.47,"result":"pass"}

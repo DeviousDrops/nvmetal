@@ -1,0 +1,4 @@
+  irq qpair qid 1, poll qpair qid 2
+  idle wait: returned 0 after 50.2 ms
+  20000 reads at QD 16 in 302 ms: 1233 interrupt wakeups (5 spurious), 16.22 completions per wakeup
+OK (0 failures)
